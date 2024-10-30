@@ -21,6 +21,10 @@ kalman.measurementNoiseCov = np.array([[1, 0],
 
 # VideoCapture initialisieren
 cap = cv2.VideoCapture(0)
+trail_img = np.zeros((480, 640, 3), dtype=np.uint8)  # Passt zur Standard-Kameragröße (kann angepasst werden)
+
+previous_point = None
+
 
 while True:
     ret, frame = cap.read()
@@ -28,7 +32,7 @@ while True:
         break
 
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    threshold_value = 200
+    threshold_value = 230
     _, thresholded = cv2.threshold(gray, threshold_value, 255, cv2.THRESH_BINARY)
     min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(gray, thresholded)
 
@@ -45,7 +49,18 @@ while True:
         # Kreise zeichnen
         cv2.circle(frame, predicted_point, 20, (0, 0, 255), 2)
 
-    cv2.imshow("Hellster Punkt", frame)
+    # Koordinaten auf dem Bild anzeigen
+    cv2.putText(frame, f"Brightest Point: {max_loc}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+
+    # Linie im Trail-Bild zeichnen, falls vorheriger Punkt existiert
+    if previous_point is not None:
+        cv2.line(trail_img, previous_point, max_loc, (0, 255, 0), 2)
+
+    previous_point = max_loc
+
+    # Hauptbild und Spur anzeigen
+    cv2.imshow('Hellster Punkt', frame)
+    cv2.imshow('Spur des hellsten Punktes', trail_img)
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
