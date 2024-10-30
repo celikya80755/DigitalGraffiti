@@ -24,16 +24,14 @@ cap = cv2.VideoCapture(0)
 trail_img = np.zeros((480, 640, 3), dtype=np.uint8)  # Passt zur Standard-Kameragröße (kann angepasst werden)
 
 previous_point = None
-frame_count = 0
 
 while True:
-    frame_count += 1
     ret, frame = cap.read()
     if not ret:
         break
 
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    threshold_value = 250
+    threshold_value = 140
     _, thresholded = cv2.threshold(gray, threshold_value, 255, cv2.THRESH_BINARY)
     min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(gray, thresholded)
 
@@ -48,15 +46,15 @@ while True:
         predicted_point = (int(predicted[0]), int(predicted[1]))
 
         # Kreise zeichnen
-        if frame_count % 25 == 0:
-            cv2.circle(frame, predicted_point, 20, (0, 0, 255), 2)
+        cv2.circle(frame, predicted_point, 20, (0, 0, 255), 2)
+        cv2.circle(trail_img, predicted_point, 5, (0, 0, 255), -1)
 
     # Koordinaten auf dem Bild anzeigen
     cv2.putText(frame, f"Brightest Point: {max_loc}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
 
     # Linie im Trail-Bild zeichnen, falls vorheriger Punkt existiert
-    if previous_point is not None:
-        cv2.line(trail_img, previous_point, max_loc, (0, 255, 0), 2)
+    # if previous_point is not None:
+    #     cv2.line(trail_img, previous_point, max_loc, (0, 255, 0), 2)
 
     previous_point = max_loc
 
