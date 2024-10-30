@@ -31,7 +31,7 @@ while True:
         break
 
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    threshold_value = 140
+    threshold_value = 200
     _, thresholded = cv2.threshold(gray, threshold_value, 255, cv2.THRESH_BINARY)
     min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(gray, thresholded)
 
@@ -47,7 +47,7 @@ while True:
 
         # Kreise zeichnen
         cv2.circle(frame, predicted_point, 20, (0, 0, 255), 2)
-        cv2.circle(trail_img, predicted_point, 5, (0, 0, 255), -1)
+        cv2.circle(trail_img, predicted_point, 10, (0, 0, 255), -1)
 
     # Koordinaten auf dem Bild anzeigen
     cv2.putText(frame, f"Brightest Point: {max_loc}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
