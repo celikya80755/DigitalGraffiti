@@ -22,6 +22,8 @@ class KalmanFilter:
                                                [0, 1]], np.float32) * 1
 
     def apply_kalman(self, max_loc):
+        """Applies Kalman filter on a given point."""
+
         measurement = np.array([[np.float32(max_loc[0])],
                                 [np.float32(max_loc[1])]], np.float32)
         self.kalman.correct(measurement)
