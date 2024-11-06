@@ -51,6 +51,8 @@ class DigitalGraffiti:
                 self.current_color = (255, 0, 0)
             elif key == ord('y'):  # Gelb
                 self.current_color = (0, 255, 255)
+            elif key == ord('c'):
+                self.clear_canvas()
 
         self.close()
 
@@ -84,6 +86,9 @@ class DigitalGraffiti:
     def update_window(self, title, window):
         cv2.imshow(title, window)
 
+    def clear_canvas(self):
+        self.canvas.fill(0)
+        self.buffer.fill(0)
     def close(self):
         self.capture.release()
         cv2.destroyAllWindows()
