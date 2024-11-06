@@ -12,6 +12,15 @@ class DigitalGraffiti:
         self.canvas = np.zeros((480, 640, 3), dtype=np.uint8)
         self.buffer = np.zeros((480, 640, 3), dtype=np.uint8)
         self.current_color = (0, 0, 255)  # Standardfarbe: Rot
+        self.empty = np.zeros((100, 512, 3), np.uint8)
+
+
+        cv2.namedWindow('Color Slider')
+
+        cv2.createTrackbar('R', 'Color Slider', 0, 255, self.update_color)
+        cv2.createTrackbar('G', 'Color Slider', 0, 255, self.update_color)
+        cv2.createTrackbar('B', 'Color Slider', 0, 255, self.update_color)
+
 
         # Starte die Hauptkamera-Schleife
         self.camera_loop()
@@ -38,6 +47,7 @@ class DigitalGraffiti:
             self.show_color_options(video_frame)
             self.update_window('Hellster Punkt', video_frame)
             self.update_window('Graffiti', self.canvas)
+            cv2.imshow('Color Slider', self.empty)
 
             # Farbauswahl durch Tastenanschläge
             key = cv2.waitKey(1) & 0xFF
@@ -55,6 +65,12 @@ class DigitalGraffiti:
                 self.clear_canvas()
 
         self.close()
+
+    def update_color(self, x):
+        r = cv2.getTrackbarPos('R', 'Color Slider')
+        g = cv2.getTrackbarPos('G', 'Color Slider')
+        b = cv2.getTrackbarPos('B', 'Color Slider')
+        self.current_color = (r, g, b)
 
     def find_brightest_point(self, video_frame):
         grayscale_image = cv2.cvtColor(video_frame, cv2.COLOR_BGR2GRAY)
