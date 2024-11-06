@@ -2,8 +2,8 @@ import ctypes
 
 import cv2
 import numpy as np
-from numpy.f2py.auxfuncs import throw_error
-
+import tkinter as tk
+from PIL import Image, ImageTk
 from kalman_filter import KalmanFilter
 
 class DigitalGraffiti:
@@ -16,7 +16,15 @@ class DigitalGraffiti:
         self.capture = cv2.VideoCapture(0)
         self.canvas = np.zeros((480, 640, 3), dtype=np.uint8)
         self.buffer = np.zeros((480, 640, 3), dtype=np.uint8)
+        self.create_gui()
         self.camera_loop()
+
+    def create_gui(self):
+        window = tk.Tk()
+        window.title("Digital Graffiti")
+
+        label = tk.Label(window)
+        label.pack()
 
     def camera_loop(self):
         while True:
