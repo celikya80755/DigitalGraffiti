@@ -4,11 +4,11 @@ import numpy as np
 from kalman_filter import KalmanFilter
 
 class DigitalGraffiti:
-    threshold_value = 200
+    threshold_value = 130
 
     def __init__(self):
         self.kalman = KalmanFilter()
-        self.capture = cv2.VideoCapture(0)
+        self.capture = cv2.VideoCapture(1)
         self.canvas = np.zeros((480, 640, 3), dtype=np.uint8)
         self.buffer = np.zeros((480, 640, 3), dtype=np.uint8)
         self.current_color = (0, 0, 255)  # Standardfarbe: Rot
@@ -76,7 +76,8 @@ class DigitalGraffiti:
         grayscale_image = cv2.cvtColor(video_frame, cv2.COLOR_BGR2GRAY)
         _, threshold_image = cv2.threshold(grayscale_image, self.threshold_value, 255, cv2.THRESH_BINARY)
         _, brightest_point_value, _, brightest_point_location = cv2.minMaxLoc(grayscale_image, threshold_image)
-        return brightest_point_value, brightest_point_location
+        mirrored_point = (640 - brightest_point_location[0], brightest_point_location[1])
+        return brightest_point_value, mirrored_point
 
     def show_brightest_point(self, video_frame, predicted_point):
         cv2.circle(video_frame, predicted_point, 20, self.current_color, 2)
