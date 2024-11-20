@@ -6,8 +6,9 @@ from kalman_filter import KalmanFilter
 class DigitalGraffiti:
     DEFAULT_THRESHOLD = 60
     DEFAULT_COLOR = (0, 0, 255)
-    WINDOW_WIDTH = 960
-    WINDOW_HEIGHT = 1280
+    WINDOW_WIDTH = 1280
+    WINDOW_HEIGHT = 960
+
     CURRENT_CAM = 0
     MIRRORED = False
 
@@ -18,8 +19,8 @@ class DigitalGraffiti:
         self.capture.set(cv2.CAP_PROP_FRAME_WIDTH, self.WINDOW_WIDTH)
         self.capture.set(cv2.CAP_PROP_FRAME_HEIGHT, self.WINDOW_HEIGHT)
 
-        self.canvas = np.zeros((self.WINDOW_WIDTH, self.WINDOW_HEIGHT, 3), dtype=np.uint8)
-        self.buffer = np.zeros((self.WINDOW_WIDTH, self.WINDOW_HEIGHT, 3), dtype=np.uint8)
+        self.canvas = np.zeros((self.WINDOW_HEIGHT, self.WINDOW_WIDTH, 3), dtype=np.uint8)
+        self.buffer = np.zeros((self.WINDOW_HEIGHT, self.WINDOW_WIDTH, 3), dtype=np.uint8)
 
         cv2.namedWindow('Kamerafeed')
         cv2.namedWindow('Graffiti')
