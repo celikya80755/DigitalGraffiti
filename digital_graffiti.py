@@ -5,19 +5,22 @@ from kalman_filter import KalmanFilter
 
 class DigitalGraffiti:
     THRESHOLD_VALUE = 60
-    WINDOW_WIDTH = 480
-    WINDOW_HEIGHT = 640
+    WINDOW_WIDTH = 960
+    WINDOW_HEIGHT = 1280
     CURRENT_CAM = 0
     PROGRAM_STATE = "CALIBRATION"
 
     def __init__(self):
         self.kalman = KalmanFilter()
         self.capture = cv2.VideoCapture(self.CURRENT_CAM)
+
+        self.capture.set(cv2.CAP_PROP_FRAME_WIDTH, self.WINDOW_WIDTH)
+        self.capture.set(cv2.CAP_PROP_FRAME_HEIGHT, self.WINDOW_HEIGHT)
+
         self.canvas = np.zeros((self.WINDOW_WIDTH, self.WINDOW_HEIGHT, 3), dtype=np.uint8)
         self.buffer = np.zeros((self.WINDOW_WIDTH, self.WINDOW_HEIGHT, 3), dtype=np.uint8)
         self.current_color = (0, 0, 255)  # Standardfarbe: Rot
         self.empty = np.zeros((100, 512, 3), np.uint8)
-
 
         cv2.namedWindow('Color Slider')
 
@@ -39,7 +42,6 @@ class DigitalGraffiti:
                     print("No webcam found!")
                 break
 
-            # TODO: change brightest point to HSV range
             brightest_point_value, brightest_point_location = self.find_brightest_point(video_frame)
             # mirrored_point_location = self.mirror_point_horizontally(brightest_point_location)
             mirrored_point_location = brightest_point_location
