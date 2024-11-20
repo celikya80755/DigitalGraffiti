@@ -9,7 +9,6 @@ class DigitalGraffiti:
     WINDOW_WIDTH = 960
     WINDOW_HEIGHT = 1280
     CURRENT_CAM = 0
-    PROGRAM_STATE = "CALIBRATION"
     MIRRORED = False
 
     def __init__(self):
