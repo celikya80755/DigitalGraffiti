@@ -4,11 +4,13 @@ import numpy as np
 from kalman_filter import KalmanFilter
 
 class DigitalGraffiti:
-    THRESHOLD_VALUE = 60
+    DEFAULT_THRESHOLD = 60
+    DEFAULT_COLOR = (0, 0, 255)
     WINDOW_WIDTH = 960
     WINDOW_HEIGHT = 1280
     CURRENT_CAM = 0
     PROGRAM_STATE = "CALIBRATION"
+    MIRRORED = False
 
     def __init__(self):
         self.kalman = KalmanFilter()
@@ -19,18 +21,24 @@ class DigitalGraffiti:
 
         self.canvas = np.zeros((self.WINDOW_WIDTH, self.WINDOW_HEIGHT, 3), dtype=np.uint8)
         self.buffer = np.zeros((self.WINDOW_WIDTH, self.WINDOW_HEIGHT, 3), dtype=np.uint8)
-        self.current_color = (0, 0, 255)  # Standardfarbe: Rot
-        self.empty = np.zeros((100, 512, 3), np.uint8)
 
-        cv2.namedWindow('Color Slider')
+        cv2.namedWindow('Kamerafeed')
+        cv2.namedWindow('Graffiti')
 
-        cv2.createTrackbar('R', 'Color Slider', 0, 255, self.update_color)
-        cv2.createTrackbar('G', 'Color Slider', 0, 255, self.update_color)
-        cv2.createTrackbar('B', 'Color Slider', 0, 255, self.update_color)
-
+        self.threshold = self.DEFAULT_THRESHOLD
+        self.current_color = self.DEFAULT_COLOR # Standardfarbe: Rot
+        self.create_control_sliders()
 
         # Starte die Hauptkamera-Schleife
         self.camera_loop()
+
+    def create_control_sliders(self):
+        cv2.createTrackbar('R', 'Kamerafeed', 0, 255, self.update_color)
+        cv2.createTrackbar('G', 'Kamerafeed', 0, 255, self.update_color)
+        cv2.createTrackbar('B', 'Kamerafeed', 0, 255, self.update_color)
+        cv2.createTrackbar('Threshold', 'Kamerafeed', 0, 255, self.update_threshold)
+
+        self.empty = np.zeros((100, 512, 3), np.uint8)
 
     def camera_loop(self):
         while True:
@@ -43,19 +51,22 @@ class DigitalGraffiti:
                 break
 
             brightest_point_value, brightest_point_location = self.find_brightest_point(video_frame)
-            # mirrored_point_location = self.mirror_point_horizontally(brightest_point_location)
-            mirrored_point_location = brightest_point_location
-            if brightest_point_value >= self.THRESHOLD_VALUE:
-                predicted_point = self.kalman.apply_kalman(mirrored_point_location)
+
+            if self.MIRRORED:
+                point_location = self.mirror_point_horizontally(brightest_point_location)
+            else:
+                point_location = brightest_point_location
+
+            if brightest_point_value >= self.threshold:
+                predicted_point = self.kalman.apply_kalman(point_location)
                 self.show_brightest_point(video_frame, predicted_point)
                 self.spray_on_canvas(self.canvas, predicted_point, 10, self.current_color)
 
             # Text anzeigen und Kamera-Frames aktualisieren
             self.show_brightest_point_text(video_frame, brightest_point_location)
             self.show_color_options(video_frame)
-            self.update_window('Hellster Punkt', video_frame)
+            self.update_window('Kamerafeed', video_frame)
             self.update_window('Graffiti', self.canvas)
-            cv2.imshow('Color Slider', self.empty)
 
             # Farbauswahl durch Tastenanschläge
             key = cv2.waitKey(1) & 0xFF
@@ -80,13 +91,16 @@ class DigitalGraffiti:
         b = cv2.getTrackbarPos('B', 'Color Slider')
         self.current_color = (r, g, b)
 
+    def update_threshold(self, x):
+        self.threshold = cv2.getTrackbarPos('Threshold', 'Kamerafeed')
+
     def mirror_point_horizontally(self, point_location):
         return (self.WINDOW_WIDTH - point_location[0]), point_location[1]
 
 
     def find_brightest_point(self, video_frame):
         grayscale_image = cv2.cvtColor(video_frame, cv2.COLOR_BGR2GRAY)
-        _, threshold_image = cv2.threshold(grayscale_image, self.THRESHOLD_VALUE, 255, cv2.THRESH_BINARY)
+        _, threshold_image = cv2.threshold(grayscale_image, self.threshold, 255, cv2.THRESH_BINARY)
         _, brightest_point_value, _, brightest_point_location = cv2.minMaxLoc(grayscale_image, threshold_image)
         return brightest_point_value, brightest_point_location
 
@@ -117,6 +131,7 @@ class DigitalGraffiti:
     def clear_canvas(self):
         self.canvas.fill(0)
         self.buffer.fill(0)
+
     def close(self):
         self.capture.release()
         cv2.destroyAllWindows()
