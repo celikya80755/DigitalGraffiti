@@ -4,13 +4,16 @@ import numpy as np
 from kalman_filter import KalmanFilter
 
 class DigitalGraffiti:
-    threshold_value = 130
+    THRESHOLD_VALUE = 130
+    WINDOW_WIDTH = 480
+    WINDOW_HEIGHT = 640
+    CURRENT_CAM = 0
 
     def __init__(self):
         self.kalman = KalmanFilter()
-        self.capture = cv2.VideoCapture(1)
-        self.canvas = np.zeros((480, 640, 3), dtype=np.uint8)
-        self.buffer = np.zeros((480, 640, 3), dtype=np.uint8)
+        self.capture = cv2.VideoCapture(self.CURRENT_CAM)
+        self.canvas = np.zeros((self.WINDOW_WIDTH, self.WINDOW_HEIGHT, 3), dtype=np.uint8)
+        self.buffer = np.zeros((self.WINDOW_WIDTH, self.WINDOW_HEIGHT, 3), dtype=np.uint8)
         self.current_color = (0, 0, 255)  # Standardfarbe: Rot
         self.empty = np.zeros((100, 512, 3), np.uint8)
 
@@ -35,10 +38,10 @@ class DigitalGraffiti:
                     print("No webcam found!")
                 break
 
-            # Helligsten Punkt finden und malen
             brightest_point_value, brightest_point_location = self.find_brightest_point(video_frame)
-            if brightest_point_value >= self.threshold_value:
-                predicted_point = self.kalman.apply_kalman(brightest_point_location)
+            mirrored_point_location = self.mirror_point_horizontally(brightest_point_location)
+            if brightest_point_value >= self.THRESHOLD_VALUE:
+                predicted_point = self.kalman.apply_kalman(mirrored_point_location)
                 self.show_brightest_point(video_frame, predicted_point)
                 self.spray_on_canvas(self.canvas, predicted_point, 10, self.current_color)
 
@@ -72,12 +75,15 @@ class DigitalGraffiti:
         b = cv2.getTrackbarPos('B', 'Color Slider')
         self.current_color = (r, g, b)
 
+    def mirror_point_horizontally(self, point_location):
+        return (self.WINDOW_WIDTH - point_location[0]), point_location[1]
+
+
     def find_brightest_point(self, video_frame):
         grayscale_image = cv2.cvtColor(video_frame, cv2.COLOR_BGR2GRAY)
-        _, threshold_image = cv2.threshold(grayscale_image, self.threshold_value, 255, cv2.THRESH_BINARY)
+        _, threshold_image = cv2.threshold(grayscale_image, self.THRESHOLD_VALUE, 255, cv2.THRESH_BINARY)
         _, brightest_point_value, _, brightest_point_location = cv2.minMaxLoc(grayscale_image, threshold_image)
-        mirrored_point = (640 - brightest_point_location[0], brightest_point_location[1])
-        return brightest_point_value, mirrored_point
+        return brightest_point_value, brightest_point_location
 
     def show_brightest_point(self, video_frame, predicted_point):
         cv2.circle(video_frame, predicted_point, 20, self.current_color, 2)
