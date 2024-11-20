@@ -4,10 +4,11 @@ import numpy as np
 from kalman_filter import KalmanFilter
 
 class DigitalGraffiti:
-    THRESHOLD_VALUE = 130
+    THRESHOLD_VALUE = 60
     WINDOW_WIDTH = 480
     WINDOW_HEIGHT = 640
     CURRENT_CAM = 0
+    PROGRAM_STATE = "CALIBRATION"
 
     def __init__(self):
         self.kalman = KalmanFilter()
@@ -38,8 +39,10 @@ class DigitalGraffiti:
                     print("No webcam found!")
                 break
 
+            # TODO: change brightest point to HSV range
             brightest_point_value, brightest_point_location = self.find_brightest_point(video_frame)
-            mirrored_point_location = self.mirror_point_horizontally(brightest_point_location)
+            # mirrored_point_location = self.mirror_point_horizontally(brightest_point_location)
+            mirrored_point_location = brightest_point_location
             if brightest_point_value >= self.THRESHOLD_VALUE:
                 predicted_point = self.kalman.apply_kalman(mirrored_point_location)
                 self.show_brightest_point(video_frame, predicted_point)

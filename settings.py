@@ -1,0 +1,3 @@
+import cv2
+
+cv2.CAP_PROP_SETTINGS
