@@ -6,8 +6,8 @@ from kalman_filter import KalmanFilter
 class DigitalGraffiti:
     DEFAULT_THRESHOLD = 60
     DEFAULT_COLOR = (0, 0, 255)
-    WINDOW_WIDTH = 640
-    WINDOW_HEIGHT = 480
+    WINDOW_WIDTH = 1280
+    WINDOW_HEIGHT = 960
 
     CURRENT_CAM = 0
     MIRRORED = False
@@ -22,8 +22,10 @@ class DigitalGraffiti:
         self.canvas = np.zeros((self.WINDOW_HEIGHT, self.WINDOW_WIDTH, 3), dtype=np.uint8)
         self.buffer = np.zeros((self.WINDOW_HEIGHT, self.WINDOW_WIDTH, 3), dtype=np.uint8)
 
-        cv2.namedWindow('Kamerafeed')
-        cv2.namedWindow('Graffiti')
+        cv2.namedWindow('Kamerafeed', cv2.WINDOW_NORMAL)  # Fenster dynamisch skalierbar
+        cv2.namedWindow('Graffiti', cv2.WINDOW_NORMAL)
+
+        cv2.imshow('Graffiti', self.resize_canvas('Graffiti', self.canvas))
 
         self.threshold = self.DEFAULT_THRESHOLD
         self.current_color = self.DEFAULT_COLOR  # Standardfarbe: Rot
@@ -41,8 +43,6 @@ class DigitalGraffiti:
         cv2.createTrackbar('B', 'Kamerafeed', 0, 255, self.update_color)
         cv2.createTrackbar('Threshold', 'Kamerafeed', 0, 255, self.update_threshold)
 
-        self.empty = np.zeros((100, 512, 3), np.uint8)
-
     def calibrate_perspective(self):
         points = []
 
@@ -53,7 +53,6 @@ class DigitalGraffiti:
                 if len(points) == 4:
                     cv2.destroyWindow('Kalibrierung')
 
-        # Kalibrierungsschleife
         print("Klicke auf vier Punkte für die Perspektivkorrektur (oben links, oben rechts, unten rechts, unten links)")
         while True:
             successful, frame = self.capture.read()
@@ -71,25 +70,43 @@ class DigitalGraffiti:
 
             if len(points) == 4:
                 break
-            if cv2.waitKey(1) & 0xFF == 27:  # ESC zum Abbrechen
+            if cv2.waitKey(1) & 0xFF == 27:
                 print("Kalibrierung abgebrochen.")
                 exit()
 
         print("Kalibrierung abgeschlossen: ", points)
 
-        # Zielpunkte (transformiertes Rechteck)
         dst_points = np.array([[0, 0], [self.WINDOW_WIDTH - 1, 0],
                                [0, self.WINDOW_HEIGHT - 1],
                                [self.WINDOW_WIDTH - 1, self.WINDOW_HEIGHT - 1]
                                ], dtype="float32")
         src_points = np.array(points, dtype="float32")
 
-        # Berechnung der Perspektivtransformation
         return cv2.getPerspectiveTransform(src_points, dst_points)
 
     def apply_transformation(self, frame):
-        # Transformation auf das aktuelle Bild anwenden
         return cv2.warpPerspective(frame, self.transformation_matrix, (self.WINDOW_WIDTH, self.WINDOW_HEIGHT))
+
+    def resize_canvas(self, window_name, image):
+        try:
+            # Überprüfen, ob das Fenster sichtbar ist
+            if not cv2.getWindowProperty(window_name, cv2.WND_PROP_VISIBLE):
+                raise ValueError(f"Fenster '{window_name}' existiert nicht oder ist nicht sichtbar.")
+
+            # Fenstergröße abrufen
+            rect = cv2.getWindowImageRect(window_name)
+            width, height = rect[2], rect[3]
+
+            # Validierung der Breite und Höhe
+            if width <= 0 or height <= 0:
+                print(f"Ungültige Fenstergröße ({width}, {height}). Verwende Bildgröße.")
+                width, height = image.shape[1], image.shape[0]  # Standard auf Bildgröße setzen
+
+            # Bild skalieren
+            return cv2.resize(image, (width, height), interpolation=cv2.INTER_LINEAR)
+        except Exception as e:
+            print(f"Fehler beim Skalieren des Bildes: {e}")
+            return image  # Rückgabe des Originalbildes, falls Fehler auftreten
 
     def camera_loop(self):
         while True:
@@ -101,9 +118,7 @@ class DigitalGraffiti:
                     print("No webcam found!")
                 break
 
-            # Transformation des Live-Bildes
             transformed_frame = self.apply_transformation(video_frame)
-
             brightest_point_value, brightest_point_location = self.find_brightest_point(transformed_frame)
 
             if self.MIRRORED:
@@ -116,23 +131,21 @@ class DigitalGraffiti:
                 self.show_brightest_point(transformed_frame, predicted_point)
                 self.spray_on_canvas(self.canvas, predicted_point, 10, self.current_color)
 
-            # Text anzeigen und Fenster aktualisieren
             self.show_brightest_point_text(transformed_frame, brightest_point_location)
             self.show_color_options(transformed_frame)
-            self.update_window('Kamerafeed', transformed_frame)
-            self.update_window('Graffiti', self.canvas)
+            cv2.imshow('Kamerafeed', self.resize_canvas('Kamerafeed', transformed_frame))
+            cv2.imshow('Graffiti', self.resize_canvas('Graffiti', self.canvas))
 
-            # Farbauswahl durch Tastenanschläge
             key = cv2.waitKey(1) & 0xFF
-            if key == ord('q'):  # Programm beenden
+            if key == ord('q'):
                 break
-            elif key == ord('r'):  # Rot
+            elif key == ord('r'):
                 self.current_color = (0, 0, 255)
-            elif key == ord('g'):  # Grün
+            elif key == ord('g'):
                 self.current_color = (0, 255, 0)
-            elif key == ord('b'):  # Blau
+            elif key == ord('b'):
                 self.current_color = (255, 0, 0)
-            elif key == ord('y'):  # Gelb
+            elif key == ord('y'):
                 self.current_color = (0, 255, 255)
             elif key == ord('c'):
                 self.clear_canvas()
@@ -140,10 +153,10 @@ class DigitalGraffiti:
         self.close()
 
     def update_color(self, x):
-        r = cv2.getTrackbarPos('R', 'Color Slider')
-        g = cv2.getTrackbarPos('G', 'Color Slider')
-        b = cv2.getTrackbarPos('B', 'Color Slider')
-        self.current_color = (r, g, b)
+        r = cv2.getTrackbarPos('R', 'Kamerafeed')
+        g = cv2.getTrackbarPos('G', 'Kamerafeed')
+        b = cv2.getTrackbarPos('B', 'Kamerafeed')
+        self.current_color = (b, g, r)
 
     def update_threshold(self, x):
         self.threshold = cv2.getTrackbarPos('Threshold', 'Kamerafeed')
@@ -151,11 +164,9 @@ class DigitalGraffiti:
     def mirror_point_horizontally(self, point_location):
         return (self.WINDOW_WIDTH - point_location[0]), point_location[1]
 
-
     def find_brightest_point(self, video_frame):
         grayscale_image = cv2.cvtColor(video_frame, cv2.COLOR_BGR2GRAY)
-        _, threshold_image = cv2.threshold(grayscale_image, self.threshold, 255, cv2.THRESH_BINARY)
-        _, brightest_point_value, _, brightest_point_location = cv2.minMaxLoc(grayscale_image, threshold_image)
+        _, brightest_point_value, _, brightest_point_location = cv2.minMaxLoc(grayscale_image)
         return brightest_point_value, brightest_point_location
 
     def show_brightest_point(self, video_frame, predicted_point):
@@ -175,12 +186,8 @@ class DigitalGraffiti:
                     (255, 255, 255), 2)
 
     def show_color_options(self, video_frame):
-        """Zeigt die verfügbaren Farboptionen im Kamerafenster an."""
         cv2.putText(video_frame, "Farbauswahl: [R] Rot | [G] Grün | [B] Blau | [Y] Gelb",
                     (10, video_frame.shape[0] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
-
-    def update_window(self, title, window):
-        cv2.imshow(title, window)
 
     def clear_canvas(self):
         self.canvas.fill(0)
