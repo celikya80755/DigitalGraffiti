@@ -9,7 +9,7 @@ class DigitalGraffiti:
     WINDOW_WIDTH = 1280
     WINDOW_HEIGHT = 960
 
-    CURRENT_CAM = 0
+    CURRENT_CAM = 1
     MIRRORED = False
 
     def __init__(self):
@@ -127,7 +127,7 @@ class DigitalGraffiti:
                 point_location = brightest_point_location
 
             if brightest_point_value >= self.threshold:
-                predicted_point = self.kalman.apply_kalman(point_location)
+                predicted_point = point_location
                 self.show_brightest_point(transformed_frame, predicted_point)
                 self.spray_on_canvas(self.canvas, predicted_point, 10, self.current_color)
 
