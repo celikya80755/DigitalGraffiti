@@ -1,16 +1,19 @@
 import ctypes
 import cv2
 import numpy as np
+import screeninfo
 from kalman_filter import KalmanFilter
 
 class DigitalGraffiti:
     DEFAULT_THRESHOLD = 60
     DEFAULT_COLOR = (0, 0, 255)
-    WINDOW_WIDTH = 1280
-    WINDOW_HEIGHT = 960
 
+    SCREEN_ID = 1
     CURRENT_CAM = 1
     MIRRORED = False
+
+    screen = screeninfo.get_monitors()[SCREEN_ID]
+    WINDOW_WIDTH, WINDOW_HEIGHT = screen.width, screen.height
 
     def __init__(self):
         self.kalman = KalmanFilter()
@@ -24,6 +27,9 @@ class DigitalGraffiti:
 
         cv2.namedWindow('Kamerafeed', cv2.WINDOW_NORMAL)  # Fenster dynamisch skalierbar
         cv2.namedWindow('Graffiti', cv2.WINDOW_NORMAL)
+
+        cv2.moveWindow('Graffiti', self.screen.x-1, self.screen.y-1)
+        cv2.setWindowProperty('Graffiti', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
         cv2.imshow('Graffiti', self.resize_canvas('Graffiti', self.canvas))
 
@@ -45,6 +51,11 @@ class DigitalGraffiti:
 
     def calibrate_perspective(self):
         points = []
+        cv2.circle(self.canvas, (10, 10), 10, (255,255,255))
+        cv2.circle(self.canvas, (self.WINDOW_WIDTH-10, 10), 10, (255, 255, 255))
+        cv2.circle(self.canvas, (10, self.WINDOW_HEIGHT-10), 10, (255, 255, 255))
+        cv2.circle(self.canvas, (self.WINDOW_WIDTH-10, self.WINDOW_HEIGHT-10), 10, (255, 255, 255))
+        cv2.imshow('Graffiti', self.resize_canvas('Graffiti', self.canvas))
 
         def click_event(event, x, y, flags, param):
             if event == cv2.EVENT_LBUTTONDOWN:
@@ -81,7 +92,7 @@ class DigitalGraffiti:
                                [self.WINDOW_WIDTH - 1, self.WINDOW_HEIGHT - 1]
                                ], dtype="float32")
         src_points = np.array(points, dtype="float32")
-
+        self.canvas.fill(0)
         return cv2.getPerspectiveTransform(src_points, dst_points)
 
     def apply_transformation(self, frame):
