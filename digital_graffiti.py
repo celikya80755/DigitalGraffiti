@@ -184,7 +184,7 @@ class DigitalGraffiti:
         cv2.circle(video_frame, predicted_point, 20, self.current_color, 2)
 
     def spray_on_canvas(self, canvas, center, radius, color):
-        opacity = 0.05
+        opacity = 0.5
         for _ in range(100):
             x_offset = np.random.randint(-radius, radius)
             y_offset = np.random.randint(-radius, radius)
