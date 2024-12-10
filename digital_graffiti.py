@@ -4,13 +4,15 @@ import numpy as np
 import screeninfo
 from kalman_filter import KalmanFilter
 
+
 class DigitalGraffiti:
-    DEFAULT_THRESHOLD = 60
-    DEFAULT_COLOR = (0, 0, 255)
+    DEFAULT_THRESHOLD = 120
+    DEFAULT_COLOR = (0, 0, 0)
 
     SCREEN_ID = 1
     CURRENT_CAM = 1
     MIRRORED = False
+    KALMAN = False
 
     screen = screeninfo.get_monitors()[SCREEN_ID]
     WINDOW_WIDTH, WINDOW_HEIGHT = screen.width, screen.height
@@ -22,13 +24,24 @@ class DigitalGraffiti:
         self.capture.set(cv2.CAP_PROP_FRAME_WIDTH, self.WINDOW_WIDTH)
         self.capture.set(cv2.CAP_PROP_FRAME_HEIGHT, self.WINDOW_HEIGHT)
 
-        self.canvas = np.zeros((self.WINDOW_HEIGHT, self.WINDOW_WIDTH, 3), dtype=np.uint8)
-        self.buffer = np.zeros((self.WINDOW_HEIGHT, self.WINDOW_WIDTH, 3), dtype=np.uint8)
+        # Load the texture image and resize to the screen size
+        texture = cv2.imread('texture.jpg', cv2.IMREAD_COLOR)
+        if texture is None:
+            print("Could not load texture.jpg. Make sure the file exists.")
+            texture = np.zeros((self.WINDOW_HEIGHT, self.WINDOW_WIDTH, 3), dtype=np.uint8)
+        else:
+            texture = cv2.resize(texture, (self.WINDOW_WIDTH, self.WINDOW_HEIGHT))
+
+        # Set the canvas to the texture
+        self.canvas = texture.copy()
+
+        # Initialize the buffer as white so multiply blending works properly
+        self.buffer = np.full((self.WINDOW_HEIGHT, self.WINDOW_WIDTH, 3), 255, dtype=np.uint8)
 
         cv2.namedWindow('Kamerafeed', cv2.WINDOW_NORMAL)  # Fenster dynamisch skalierbar
         cv2.namedWindow('Graffiti', cv2.WINDOW_NORMAL)
 
-        cv2.moveWindow('Graffiti', self.screen.x-1, self.screen.y-1)
+        cv2.moveWindow('Graffiti', self.screen.x - 1, self.screen.y - 1)
         cv2.setWindowProperty('Graffiti', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
         cv2.imshow('Graffiti', self.resize_canvas('Graffiti', self.canvas))
@@ -51,10 +64,10 @@ class DigitalGraffiti:
 
     def calibrate_perspective(self):
         points = []
-        cv2.circle(self.canvas, (10, 10), 10, (255,255,255))
-        cv2.circle(self.canvas, (self.WINDOW_WIDTH-10, 10), 10, (255, 255, 255))
-        cv2.circle(self.canvas, (10, self.WINDOW_HEIGHT-10), 10, (255, 255, 255))
-        cv2.circle(self.canvas, (self.WINDOW_WIDTH-10, self.WINDOW_HEIGHT-10), 10, (255, 255, 255))
+        cv2.circle(self.canvas, (10, 10), 10, (255, 255, 255))
+        cv2.circle(self.canvas, (self.WINDOW_WIDTH - 10, 10), 10, (255, 255, 255))
+        cv2.circle(self.canvas, (10, self.WINDOW_HEIGHT - 10), 10, (255, 255, 255))
+        cv2.circle(self.canvas, (self.WINDOW_WIDTH - 10, self.WINDOW_HEIGHT - 10), 10, (255, 255, 255))
         cv2.imshow('Graffiti', self.resize_canvas('Graffiti', self.canvas))
 
         def click_event(event, x, y, flags, param):
@@ -92,7 +105,7 @@ class DigitalGraffiti:
                                [self.WINDOW_WIDTH - 1, self.WINDOW_HEIGHT - 1]
                                ], dtype="float32")
         src_points = np.array(points, dtype="float32")
-        self.canvas.fill(0)
+        self.canvas = cv2.resize(self.canvas, (self.WINDOW_WIDTH, self.WINDOW_HEIGHT))
         return cv2.getPerspectiveTransform(src_points, dst_points)
 
     def apply_transformation(self, frame):
@@ -100,24 +113,20 @@ class DigitalGraffiti:
 
     def resize_canvas(self, window_name, image):
         try:
-            # Überprüfen, ob das Fenster sichtbar ist
             if not cv2.getWindowProperty(window_name, cv2.WND_PROP_VISIBLE):
                 raise ValueError(f"Fenster '{window_name}' existiert nicht oder ist nicht sichtbar.")
 
-            # Fenstergröße abrufen
             rect = cv2.getWindowImageRect(window_name)
             width, height = rect[2], rect[3]
 
-            # Validierung der Breite und Höhe
             if width <= 0 or height <= 0:
                 print(f"Ungültige Fenstergröße ({width}, {height}). Verwende Bildgröße.")
-                width, height = image.shape[1], image.shape[0]  # Standard auf Bildgröße setzen
+                width, height = image.shape[1], image.shape[0]
 
-            # Bild skalieren
             return cv2.resize(image, (width, height), interpolation=cv2.INTER_LINEAR)
         except Exception as e:
             print(f"Fehler beim Skalieren des Bildes: {e}")
-            return image  # Rückgabe des Originalbildes, falls Fehler auftreten
+            return image
 
     def camera_loop(self):
         while True:
@@ -138,7 +147,10 @@ class DigitalGraffiti:
                 point_location = brightest_point_location
 
             if brightest_point_value >= self.threshold:
-                predicted_point = point_location
+                if(self.KALMAN):
+                    predicted_point = self.kalman.apply_kalman(brightest_point_location)
+                else:
+                    predicted_point = brightest_point_location
                 self.show_brightest_point(transformed_frame, predicted_point)
                 self.spray_on_canvas(self.canvas, predicted_point, 10, self.current_color)
 
@@ -184,29 +196,44 @@ class DigitalGraffiti:
         cv2.circle(video_frame, predicted_point, 20, self.current_color, 2)
 
     def spray_on_canvas(self, canvas, center, radius, color):
-        opacity = 0.5
+        # Start with a fresh white buffer each time to properly multiply
+        self.buffer.fill(255)
+
+        # Draw random spray dots in the buffer
         for _ in range(100):
             x_offset = np.random.randint(-radius, radius)
             y_offset = np.random.randint(-radius, radius)
             if x_offset ** 2 + y_offset ** 2 <= radius ** 2:
                 cv2.circle(self.buffer, (center[0] + x_offset, center[1] + y_offset), 1, color, -1)
-        self.canvas = cv2.addWeighted(self.buffer, opacity, canvas, 1 - opacity, 0)
+
+        # Multiply blending: out = (canvas/255 * buffer/255) * 255
+        canvas_float = canvas.astype(np.float32) / 255.0
+        buffer_float = self.buffer.astype(np.float32) / 255.0
+        multiplied = (canvas_float * buffer_float) * 255.0
+        self.canvas = multiplied.astype(np.uint8)
 
     def show_brightest_point_text(self, video_frame, brightest_point):
-        cv2.putText(video_frame, f"Brightest Point: {brightest_point}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6,
-                    (255, 255, 255), 2)
+        cv2.putText(video_frame, f"Brightest Point: {brightest_point}", (10, 30),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
 
     def show_color_options(self, video_frame):
         cv2.putText(video_frame, "Farbauswahl: [R] Rot | [G] Grün | [B] Blau | [Y] Gelb",
                     (10, video_frame.shape[0] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
 
     def clear_canvas(self):
-        self.canvas.fill(0)
-        self.buffer.fill(0)
+        # Reset the canvas to the original texture
+        texture = cv2.imread('texture.jpg', cv2.IMREAD_COLOR)
+        if texture is not None:
+            texture = cv2.resize(texture, (self.WINDOW_WIDTH, self.WINDOW_HEIGHT))
+            self.canvas = texture.copy()
+        else:
+            self.canvas.fill(0)
+        self.buffer.fill(255)
 
     def close(self):
         self.capture.release()
         cv2.destroyAllWindows()
+
 
 if __name__ == "__main__":
     graffiti_app = DigitalGraffiti()
