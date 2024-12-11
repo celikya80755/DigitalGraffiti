@@ -5,16 +5,28 @@ import screeninfo
 from kalman_filter import KalmanFilter
 
 class DigitalGraffiti:
-    DEFAULT_THRESHOLD = 120
-    DEFAULT_COLOR = (0, 0, 255)
-    SPRAY_OPACITY = 0.5
+
+    # main settings
     SCREEN_ID = 1
     CURRENT_CAM = 1
     MIRRORED = False
     KALMAN = False
 
+    # defaults
+    DEFAULT_THRESHOLD = 120
+    DEFAULT_COLOR = (0, 0, 255)
+
+    # spray settings
+    SPRAY_OPACITY = 0.5
+    DENSITY = 70
+    RADIUS = 10
+
+    # performance
+    DOWNSCALE_FACTOR = 1.5
+
+
     screen = screeninfo.get_monitors()[SCREEN_ID]
-    WINDOW_WIDTH, WINDOW_HEIGHT = int(screen.width / 1.5), int(screen.height / 1.5)
+    WINDOW_WIDTH, WINDOW_HEIGHT = int(screen.width / DOWNSCALE_FACTOR), int(screen.height / DOWNSCALE_FACTOR)
 
     def __init__(self):
         self.kalman = KalmanFilter()
@@ -152,9 +164,9 @@ class DigitalGraffiti:
             brightest_point_value, brightest_point_location = self.find_brightest_point(transformed_frame)
 
             if self.MIRRORED:
-                point_location = self.mirror_point_horizontally(brightest_point_location)
+                brightest_point_location = self.mirror_point_horizontally(brightest_point_location)
             else:
-                point_location = brightest_point_location
+                brightest_point_location = brightest_point_location
 
             if brightest_point_value >= self.threshold:
                 if (self.KALMAN):
@@ -162,7 +174,7 @@ class DigitalGraffiti:
                 else:
                     predicted_point = brightest_point_location
                 self.show_brightest_point(transformed_frame, predicted_point)
-                self.spray_on_canvas(self.canvas, predicted_point, 10, self.current_color)
+                self.spray_on_canvas(self.canvas, predicted_point, self.RADIUS, self.current_color)
 
             self.show_brightest_point_text(transformed_frame, brightest_point_location)
             self.show_color_options(transformed_frame)
@@ -209,7 +221,7 @@ class DigitalGraffiti:
         spray_buffer = np.full((self.WINDOW_HEIGHT, self.WINDOW_WIDTH, 3), 255, dtype=np.uint8)
 
         # Draw random spray dots
-        for _ in range(100):
+        for _ in range(self.DENSITY):
             x_offset = np.random.randint(-radius, radius)
             y_offset = np.random.randint(-radius, radius)
             if x_offset ** 2 + y_offset ** 2 <= radius ** 2:
