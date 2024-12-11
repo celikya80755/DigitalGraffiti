@@ -7,7 +7,7 @@ from kalman_filter import KalmanFilter
 
 class DigitalGraffiti:
     DEFAULT_THRESHOLD = 120
-    DEFAULT_COLOR = (0, 0, 0)
+    DEFAULT_COLOR = (0, 0, 255)
 
     SCREEN_ID = 1
     CURRENT_CAM = 1
@@ -68,6 +68,12 @@ class DigitalGraffiti:
         cv2.circle(self.canvas, (self.WINDOW_WIDTH - 10, 10), 10, (255, 255, 255))
         cv2.circle(self.canvas, (10, self.WINDOW_HEIGHT - 10), 10, (255, 255, 255))
         cv2.circle(self.canvas, (self.WINDOW_WIDTH - 10, self.WINDOW_HEIGHT - 10), 10, (255, 255, 255))
+
+        cv2.putText(self.canvas, "1", (20, 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+        cv2.putText(self.canvas, "2", (self.WINDOW_WIDTH - 20, 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+        cv2.putText(self.canvas, "3", (20, self.WINDOW_HEIGHT - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+        cv2.putText(self.canvas, "4", (self.WINDOW_WIDTH - 20, self.WINDOW_HEIGHT - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+
         cv2.imshow('Graffiti', self.resize_canvas('Graffiti', self.canvas))
 
         def click_event(event, x, y, flags, param):
@@ -77,7 +83,7 @@ class DigitalGraffiti:
                 if len(points) == 4:
                     cv2.destroyWindow('Kalibrierung')
 
-        print("Klicke auf vier Punkte für die Perspektivkorrektur (oben links, oben rechts, unten rechts, unten links)")
+        print("Klicke auf vier Punkte für die Perspektivkorrektur (oben links, oben rechts, unten links, unten rechts)")
         while True:
             successful, frame = self.capture.read()
             if not successful:
@@ -106,6 +112,7 @@ class DigitalGraffiti:
                                ], dtype="float32")
         src_points = np.array(points, dtype="float32")
         self.canvas = cv2.resize(self.canvas, (self.WINDOW_WIDTH, self.WINDOW_HEIGHT))
+        self.clear_canvas()
         return cv2.getPerspectiveTransform(src_points, dst_points)
 
     def apply_transformation(self, frame):
