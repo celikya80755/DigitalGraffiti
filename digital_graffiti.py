@@ -6,11 +6,14 @@ from kalman_filter import KalmanFilter
 
 
 class DigitalGraffiti:
+
     DEFAULT_THRESHOLD = 120
     DEFAULT_COLOR = (0, 0, 255)
+    SPRAY_OPACITY = 0.5
 
     SCREEN_ID = 1
     CURRENT_CAM = 1
+
     MIRRORED = False
     KALMAN = False
 
@@ -202,7 +205,7 @@ class DigitalGraffiti:
     def show_brightest_point(self, video_frame, predicted_point):
         cv2.circle(video_frame, predicted_point, 20, self.current_color, 2)
 
-    def spray_on_canvas(self, canvas, center, radius, color, alpha=0.5):
+    def spray_on_canvas(self, canvas, center, radius, color):
         """
         Applies spray paint to the canvas using alpha blending.
 
@@ -228,7 +231,7 @@ class DigitalGraffiti:
         spray_float = spray_buffer.astype(np.float32) / 255.0
 
         # Create an alpha mask where the spray is applied
-        mask = (spray_buffer != 255).any(axis=2).astype(np.float32) * alpha
+        mask = (spray_buffer != 255).any(axis=2).astype(np.float32) * self.SPRAY_OPACITY
         mask = np.repeat(mask[:, :, np.newaxis], 3, axis=2)
 
         # Blend the spray onto the canvas
