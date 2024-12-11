@@ -4,21 +4,17 @@ import numpy as np
 import screeninfo
 from kalman_filter import KalmanFilter
 
-
 class DigitalGraffiti:
-
     DEFAULT_THRESHOLD = 120
     DEFAULT_COLOR = (0, 0, 255)
     SPRAY_OPACITY = 0.5
-
     SCREEN_ID = 1
     CURRENT_CAM = 1
-
     MIRRORED = False
     KALMAN = False
 
     screen = screeninfo.get_monitors()[SCREEN_ID]
-    WINDOW_WIDTH, WINDOW_HEIGHT = screen.width, screen.height
+    WINDOW_WIDTH, WINDOW_HEIGHT = int(screen.width / 1.5), int(screen.height / 1.5)
 
     def __init__(self):
         self.kalman = KalmanFilter()
@@ -38,13 +34,12 @@ class DigitalGraffiti:
         # Set the canvas to the texture
         self.canvas = texture.copy()
 
-        # Initialize the buffer as white so multiply blending works properly
-        self.buffer = np.full((self.WINDOW_HEIGHT, self.WINDOW_WIDTH, 3), 255, dtype=np.uint8)
+        self.buffer = np.full((self.WINDOW_HEIGHT, self.WINDOW_WIDTH, 3), 0, dtype=np.uint8)
 
         cv2.namedWindow('Kamerafeed', cv2.WINDOW_NORMAL)  # Fenster dynamisch skalierbar
         cv2.namedWindow('Graffiti', cv2.WINDOW_NORMAL)
 
-        cv2.moveWindow('Graffiti', self.screen.x - 1, self.screen.y - 1)
+        cv2.moveWindow('Graffiti', self.screen.x-1, self.screen.y-1)
         cv2.setWindowProperty('Graffiti', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
         cv2.imshow('Graffiti', self.resize_canvas('Graffiti', self.canvas))
@@ -67,15 +62,16 @@ class DigitalGraffiti:
 
     def calibrate_perspective(self):
         points = []
-        cv2.circle(self.canvas, (10, 10), 10, (255, 255, 255))
-        cv2.circle(self.canvas, (self.WINDOW_WIDTH - 10, 10), 10, (255, 255, 255))
-        cv2.circle(self.canvas, (10, self.WINDOW_HEIGHT - 10), 10, (255, 255, 255))
-        cv2.circle(self.canvas, (self.WINDOW_WIDTH - 10, self.WINDOW_HEIGHT - 10), 10, (255, 255, 255))
+        cv2.circle(self.canvas, (10, 10), 10, (255,255,255))
+        cv2.circle(self.canvas, (self.WINDOW_WIDTH-10, 10), 10, (255, 255, 255))
+        cv2.circle(self.canvas, (10, self.WINDOW_HEIGHT-10), 10, (255, 255, 255))
+        cv2.circle(self.canvas, (self.WINDOW_WIDTH-10, self.WINDOW_HEIGHT-10), 10, (255, 255, 255))
 
         cv2.putText(self.canvas, "1", (20, 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
         cv2.putText(self.canvas, "2", (self.WINDOW_WIDTH - 20, 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
         cv2.putText(self.canvas, "3", (20, self.WINDOW_HEIGHT - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-        cv2.putText(self.canvas, "4", (self.WINDOW_WIDTH - 20, self.WINDOW_HEIGHT - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+        cv2.putText(self.canvas, "4", (self.WINDOW_WIDTH - 20, self.WINDOW_HEIGHT - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                    (255, 255, 255), 1)
 
         cv2.imshow('Graffiti', self.resize_canvas('Graffiti', self.canvas))
 
@@ -86,7 +82,7 @@ class DigitalGraffiti:
                 if len(points) == 4:
                     cv2.destroyWindow('Kalibrierung')
 
-        print("Klicke auf vier Punkte für die Perspektivkorrektur (oben links, oben rechts, unten links, unten rechts)")
+        print("Klicke auf vier Punkte für die Perspektivkorrektur (oben links, oben rechts, unten rechts, unten links)")
         while True:
             successful, frame = self.capture.read()
             if not successful:
@@ -123,20 +119,24 @@ class DigitalGraffiti:
 
     def resize_canvas(self, window_name, image):
         try:
+            # Überprüfen, ob das Fenster sichtbar ist
             if not cv2.getWindowProperty(window_name, cv2.WND_PROP_VISIBLE):
                 raise ValueError(f"Fenster '{window_name}' existiert nicht oder ist nicht sichtbar.")
 
+            # Fenstergröße abrufen
             rect = cv2.getWindowImageRect(window_name)
             width, height = rect[2], rect[3]
 
+            # Validierung der Breite und Höhe
             if width <= 0 or height <= 0:
                 print(f"Ungültige Fenstergröße ({width}, {height}). Verwende Bildgröße.")
-                width, height = image.shape[1], image.shape[0]
+                width, height = image.shape[1], image.shape[0]  # Standard auf Bildgröße setzen
 
+            # Bild skalieren
             return cv2.resize(image, (width, height), interpolation=cv2.INTER_LINEAR)
         except Exception as e:
             print(f"Fehler beim Skalieren des Bildes: {e}")
-            return image
+            return image  # Rückgabe des Originalbildes, falls Fehler auftreten
 
     def camera_loop(self):
         while True:
@@ -157,7 +157,7 @@ class DigitalGraffiti:
                 point_location = brightest_point_location
 
             if brightest_point_value >= self.threshold:
-                if(self.KALMAN):
+                if (self.KALMAN):
                     predicted_point = self.kalman.apply_kalman(brightest_point_location)
                 else:
                     predicted_point = brightest_point_location
@@ -206,17 +206,6 @@ class DigitalGraffiti:
         cv2.circle(video_frame, predicted_point, 20, self.current_color, 2)
 
     def spray_on_canvas(self, canvas, center, radius, color):
-        """
-        Applies spray paint to the canvas using alpha blending.
-
-        Parameters:
-        - canvas (np.ndarray): The background canvas image.
-        - center (tuple): (x, y) coordinates where the spray is applied.
-        - radius (int): Radius of the spray area.
-        - color (tuple): BGR color tuple for the spray.
-        - alpha (float): Blending factor (0.0 to 1.0).
-        """
-        # Create a temporary buffer for the spray
         spray_buffer = np.full((self.WINDOW_HEIGHT, self.WINDOW_WIDTH, 3), 255, dtype=np.uint8)
 
         # Draw random spray dots
@@ -242,8 +231,8 @@ class DigitalGraffiti:
         self.canvas = blended
 
     def show_brightest_point_text(self, video_frame, brightest_point):
-        cv2.putText(video_frame, f"Brightest Point: {brightest_point}", (10, 30),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+        cv2.putText(video_frame, f"Brightest Point: {brightest_point}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6,
+                    (255, 255, 255), 2)
 
     def show_color_options(self, video_frame):
         cv2.putText(video_frame, "Farbauswahl: [R] Rot | [G] Grün | [B] Blau | [Y] Gelb",
@@ -257,12 +246,11 @@ class DigitalGraffiti:
             self.canvas = texture.copy()
         else:
             self.canvas.fill(0)
-        self.buffer.fill(255)
+        self.buffer.fill(0)
 
     def close(self):
         self.capture.release()
         cv2.destroyAllWindows()
-
 
 if __name__ == "__main__":
     graffiti_app = DigitalGraffiti()
