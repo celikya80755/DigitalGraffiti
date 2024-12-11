@@ -202,22 +202,41 @@ class DigitalGraffiti:
     def show_brightest_point(self, video_frame, predicted_point):
         cv2.circle(video_frame, predicted_point, 20, self.current_color, 2)
 
-    def spray_on_canvas(self, canvas, center, radius, color):
-        # Start with a fresh white buffer each time to properly multiply
-        self.buffer.fill(255)
+    def spray_on_canvas(self, canvas, center, radius, color, alpha=0.5):
+        """
+        Applies spray paint to the canvas using alpha blending.
 
-        # Draw random spray dots in the buffer
+        Parameters:
+        - canvas (np.ndarray): The background canvas image.
+        - center (tuple): (x, y) coordinates where the spray is applied.
+        - radius (int): Radius of the spray area.
+        - color (tuple): BGR color tuple for the spray.
+        - alpha (float): Blending factor (0.0 to 1.0).
+        """
+        # Create a temporary buffer for the spray
+        spray_buffer = np.full((self.WINDOW_HEIGHT, self.WINDOW_WIDTH, 3), 255, dtype=np.uint8)
+
+        # Draw random spray dots
         for _ in range(100):
             x_offset = np.random.randint(-radius, radius)
             y_offset = np.random.randint(-radius, radius)
             if x_offset ** 2 + y_offset ** 2 <= radius ** 2:
-                cv2.circle(self.buffer, (center[0] + x_offset, center[1] + y_offset), 1, color, -1)
+                cv2.circle(spray_buffer, (center[0] + x_offset, center[1] + y_offset), 1, color, -1)
 
-        # Multiply blending: out = (canvas/255 * buffer/255) * 255
+        # Convert images to float for blending
         canvas_float = canvas.astype(np.float32) / 255.0
-        buffer_float = self.buffer.astype(np.float32) / 255.0
-        multiplied = (canvas_float * buffer_float) * 255.0
-        self.canvas = multiplied.astype(np.uint8)
+        spray_float = spray_buffer.astype(np.float32) / 255.0
+
+        # Create an alpha mask where the spray is applied
+        mask = (spray_buffer != 255).any(axis=2).astype(np.float32) * alpha
+        mask = np.repeat(mask[:, :, np.newaxis], 3, axis=2)
+
+        # Blend the spray onto the canvas
+        blended = canvas_float * (1 - mask) + spray_float * mask
+        blended = np.clip(blended * 255.0, 0, 255).astype(np.uint8)
+
+        # Update the canvas
+        self.canvas = blended
 
     def show_brightest_point_text(self, video_frame, brightest_point):
         cv2.putText(video_frame, f"Brightest Point: {brightest_point}", (10, 30),
