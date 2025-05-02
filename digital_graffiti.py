@@ -24,7 +24,6 @@ class DigitalGraffiti:
     # performance
     DOWNSCALE_FACTOR = 1.5
 
-
     screen = screeninfo.get_monitors()[SCREEN_ID]
     WINDOW_WIDTH, WINDOW_HEIGHT = int(screen.width / DOWNSCALE_FACTOR), int(screen.height / DOWNSCALE_FACTOR)
 
