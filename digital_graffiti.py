@@ -18,7 +18,7 @@ class DigitalGraffiti:
 
     # spray settings
     SPRAY_OPACITY = 0.5
-    DENSITY = 70
+    DENSITY = 150
     RADIUS = 10
 
     # performance
@@ -89,11 +89,23 @@ class DigitalGraffiti:
         self.current_color = self.DEFAULT_COLOR  # Standardfarbe: Rot
         self.create_control_sliders()
 
+        self.spray_mask = self.generate_spray_mask(self.RADIUS, self.DENSITY)
+
         # Führt die Kalibrierung aus
         self.transformation_matrix = self.calibrate_perspective()
 
         # Starte die Hauptkamera-Schleife
         self.camera_loop()
+
+    def generate_spray_mask(self, radius, density):
+        mask = np.zeros((2 * radius + 1, 2 * radius + 1), dtype=np.uint8)
+        center = radius
+        for _ in range(density):
+            x_offset = np.random.randint(-radius, radius)
+            y_offset = np.random.randint(-radius, radius)
+            if x_offset ** 2 + y_offset ** 2 <= radius ** 2:
+                mask[center + y_offset, center + x_offset] = 255
+        return mask
 
     def create_control_sliders(self):
         cv2.createTrackbar('R', 'Kamerafeed', 0, 255, self.update_color)
@@ -263,29 +275,25 @@ class DigitalGraffiti:
             self.spray_on_canvas(self, canvas, center, radius, color)
 
     def spray_on_canvas(self, canvas, center, radius, color):
-        spray_buffer = np.full((self.WINDOW_HEIGHT, self.WINDOW_WIDTH, 3), 255, dtype=np.uint8)
+        x, y = center
+        mask = self.spray_mask
 
-        # Draw random spray dots
-        for _ in range(self.DENSITY):
-            x_offset = np.random.randint(-radius, radius)
-            y_offset = np.random.randint(-radius, radius)
-            if x_offset ** 2 + y_offset ** 2 <= radius ** 2:
-                cv2.circle(spray_buffer, (center[0] + x_offset, center[1] + y_offset), 1, color, -1)
+        # Get region of interest
+        h, w = mask.shape
+        x1, y1 = max(x - radius, 0), max(y - radius, 0)
+        x2, y2 = min(x + radius + 1, self.WINDOW_WIDTH), min(y + radius + 1, self.WINDOW_HEIGHT)
 
-        # Convert images to float for blending
-        canvas_float = canvas.astype(np.float32) / 255.0
-        spray_float = spray_buffer.astype(np.float32) / 255.0
+        roi_canvas = canvas[y1:y2, x1:x2]
+        roi_mask = mask[(y1 - y + radius):(y2 - y + radius), (x1 - x + radius):(x2 - x + radius)]
 
-        # Create an alpha mask where the spray is applied
-        mask = (spray_buffer != 255).any(axis=2).astype(np.float32) * self.SPRAY_OPACITY
-        mask = np.repeat(mask[:, :, np.newaxis], 3, axis=2)
+        # Create spray image with the selected color
+        spray_color = np.zeros_like(roi_canvas)
+        spray_color[roi_mask > 0] = color
 
-        # Blend the spray onto the canvas
-        blended = canvas_float * (1 - mask) + spray_float * mask
-        blended = np.clip(blended * 255.0, 0, 255).astype(np.uint8)
-
-        # Update the canvas
-        self.canvas = blended
+        # Blend
+        alpha = self.SPRAY_OPACITY
+        mask3 = (roi_mask > 0).astype(np.float32)[..., np.newaxis]
+        roi_canvas[:] = (roi_canvas * (1 - mask3 * alpha) + spray_color * (mask3 * alpha)).astype(np.uint8)
 
     def get_circle_index(self, x, y):
         for i in range(self.CIRCLE_COUNT):
