@@ -8,7 +8,7 @@ class DigitalGraffiti:
 
     # main settings
     SCREEN_ID = 1
-    CURRENT_CAM = 0
+    CURRENT_CAM = 1
     MIRRORED = False
     KALMAN = False
 
