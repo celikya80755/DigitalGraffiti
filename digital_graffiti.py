@@ -268,11 +268,11 @@ class DigitalGraffiti:
                 print(f"Resetting color timer to 0")
                 self.COLOR_TIMER = 0
 
-            if self.COLOR_TIMER >= 60:
+            if self.COLOR_TIMER >= 30:
                 self.current_color = self.COLOR_MAP[color_index]
 
         else:
-            self.spray_on_canvas(self, canvas, center, radius, color)
+            self.spray_on_canvas(canvas, center, radius, color)
 
     def spray_on_canvas(self, canvas, center, radius, color):
         x, y = center
