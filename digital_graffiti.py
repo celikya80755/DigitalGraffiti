@@ -68,6 +68,9 @@ class DigitalGraffiti:
         self.capture.set(cv2.CAP_PROP_FRAME_WIDTH, self.WINDOW_WIDTH)
         self.capture.set(cv2.CAP_PROP_FRAME_HEIGHT, self.WINDOW_HEIGHT)
 
+        self.setup_canvas()
+
+    def setup_canvas(self):
         # Load the texture image and resize to the screen size
         texture = cv2.imread('texture_colors_sizes.jpg', cv2.IMREAD_COLOR)
         if texture is None:
@@ -228,7 +231,7 @@ class DigitalGraffiti:
 
             key = cv2.waitKey(1) & 0xFF
             if key == ord('q'):
-                break
+                self.close()
             elif key == ord('r'):
                 self.current_color = self.COLOR_MAP[4]
             elif key == ord('g'):
@@ -239,8 +242,11 @@ class DigitalGraffiti:
                 self.current_color = self.COLOR_MAP[3]
             elif key == ord('c'):
                 self.clear_canvas()
+            elif key == ord('p'):
+                cv2.destroyAllWindows()
+                break
 
-        self.close()
+        self.setup_canvas()
 
     def update_color(self, x):
         r = cv2.getTrackbarPos('R', 'Kamerafeed')
