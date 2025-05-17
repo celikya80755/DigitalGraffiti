@@ -19,22 +19,26 @@ class DigitalGraffiti:
     # spray settings
     SPRAY_OPACITY = 0.5
     DENSITY = 150
-    RADIUS = 10
+    radius = 10
 
     # performance
     DOWNSCALE_FACTOR = 1.5
 
     # color map
     COLOR_MAP = [
-        (255, 255, 255),  # white
-        (255, 1, 132),  # purple
-        (255, 1, 31),  # blue
-        (255, 240, 1),  # cyan
-        (43, 255, 1),  # green
-        (1, 246, 255),  # yellow
-        (1, 150, 255),  # orange
-        (1, 1, 255)  # red
+        (255, 255, 255),  # 0 white
+        (255, 1, 31),  # 1 blue
+        (43, 255, 1),  # 2 green
+        (1, 246, 255),  # 3 yellow
+        (1, 1, 255)  # 4 red
     ]
+
+    BRUSH_MAP = [
+        5, 10, 15
+    ]
+
+    DENSITY_MAP = [
+        100, 200, 300]
 
     # color timer
     COLOR_TIMER = 0
@@ -65,9 +69,9 @@ class DigitalGraffiti:
         self.capture.set(cv2.CAP_PROP_FRAME_HEIGHT, self.WINDOW_HEIGHT)
 
         # Load the texture image and resize to the screen size
-        texture = cv2.imread('texture_colors.jpg', cv2.IMREAD_COLOR)
+        texture = cv2.imread('texture_colors_sizes.jpg', cv2.IMREAD_COLOR)
         if texture is None:
-            print("Could not load texture_colors.jpg. Make sure the file exists.")
+            print("Could not load texture_colors_sizes.jpg. Make sure the file exists.")
             texture = np.zeros((self.WINDOW_HEIGHT, self.WINDOW_WIDTH, 3), dtype=np.uint8)
         else:
             texture = cv2.resize(texture, (self.WINDOW_WIDTH, self.WINDOW_HEIGHT))
@@ -89,7 +93,7 @@ class DigitalGraffiti:
         self.current_color = self.DEFAULT_COLOR  # Standardfarbe: Rot
         self.create_control_sliders()
 
-        self.spray_mask = self.generate_spray_mask(self.RADIUS, self.DENSITY)
+        self.spray_mask = self.generate_spray_mask(self.radius, self.DENSITY)
 
         # Führt die Kalibrierung aus
         self.transformation_matrix = self.calibrate_perspective()
@@ -215,7 +219,7 @@ class DigitalGraffiti:
                 else:
                     predicted_point = brightest_point_location
                 self.show_brightest_point(transformed_frame, predicted_point)
-                self.handle_point(self.canvas, predicted_point, self.RADIUS, self.current_color)
+                self.handle_point(self.canvas, predicted_point, self.radius, self.current_color)
 
             self.show_brightest_point_text(transformed_frame, brightest_point_location)
             self.show_color_options(transformed_frame)
@@ -226,13 +230,13 @@ class DigitalGraffiti:
             if key == ord('q'):
                 break
             elif key == ord('r'):
-                self.current_color = self.COLOR_MAP[7]
-            elif key == ord('g'):
                 self.current_color = self.COLOR_MAP[4]
-            elif key == ord('b'):
+            elif key == ord('g'):
                 self.current_color = self.COLOR_MAP[2]
+            elif key == ord('b'):
+                self.current_color = self.COLOR_MAP[1]
             elif key == ord('y'):
-                self.current_color = self.COLOR_MAP[5]
+                self.current_color = self.COLOR_MAP[3]
             elif key == ord('c'):
                 self.clear_canvas()
 
@@ -269,7 +273,12 @@ class DigitalGraffiti:
                 self.COLOR_TIMER = 0
 
             if self.COLOR_TIMER >= 30:
-                self.current_color = self.COLOR_MAP[color_index]
+                if color_index < 5:
+                    self.current_color = self.COLOR_MAP[color_index]
+                else:
+                    self.radius = self.BRUSH_MAP[color_index - 5]
+                    self.DENSITY = self.DENSITY_MAP[color_index - 5]
+                    self.spray_mask = self.generate_spray_mask(self.radius, self.DENSITY)
 
         else:
             self.spray_on_canvas(canvas, center, radius, color)
@@ -324,7 +333,7 @@ class DigitalGraffiti:
 
     def clear_canvas(self):
         # Reset the canvas to the original texture
-        texture = cv2.imread('texture_colors.jpg', cv2.IMREAD_COLOR)
+        texture = cv2.imread('texture_colors_sizes.jpg', cv2.IMREAD_COLOR)
         if texture is not None:
             texture = cv2.resize(texture, (self.WINDOW_WIDTH, self.WINDOW_HEIGHT))
             self.canvas = texture.copy()
