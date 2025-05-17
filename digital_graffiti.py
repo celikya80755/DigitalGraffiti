@@ -61,6 +61,10 @@ class DigitalGraffiti:
     TEXTURE_WIDTH_SCALE = WINDOW_WIDTH / TEXTURE_WIDTH
     TEXTURE_HEIGHT_SCALE = WINDOW_HEIGHT / TEXTURE_HEIGHT
 
+    active_index = -1
+    timer_index = -1
+    timer_value = 0
+
     def __init__(self):
         self.kalman = KalmanFilter()
         self.capture = cv2.VideoCapture(self.CURRENT_CAM)
@@ -229,6 +233,8 @@ class DigitalGraffiti:
             cv2.imshow('Kamerafeed', self.resize_canvas('Kamerafeed', transformed_frame))
             cv2.imshow('Graffiti', self.resize_canvas('Graffiti', self.canvas))
 
+            self.draw_selection_progress()
+
             key = cv2.waitKey(1) & 0xFF
             if key == ord('q'):
                 self.close()
@@ -271,23 +277,63 @@ class DigitalGraffiti:
     def handle_point(self, canvas, center, radius, color):
         if center[0] > (self.BORDER * self.TEXTURE_WIDTH_SCALE):
             color_index = self.get_circle_index(center[0], center[1])
+
             if color_index >= 0:
+                if not hasattr(self, "current_hover_index") or self.current_hover_index != color_index:
+                    self.COLOR_TIMER = 0  # Neue Auswahl -> Timer zurücksetzen
+                self.current_hover_index = color_index
                 self.COLOR_TIMER += 1
                 print(f"Detected color {color_index} for {self.COLOR_TIMER} frames")
             else:
-                print(f"Resetting color timer to 0")
                 self.COLOR_TIMER = 0
+                self.current_hover_index = None
+                return  # Keine Auswahl
 
             if self.COLOR_TIMER >= 30:
-                if color_index < 5:
+                if color_index < len(self.COLOR_MAP):
                     self.current_color = self.COLOR_MAP[color_index]
                 else:
-                    self.radius = self.BRUSH_MAP[color_index - 5]
-                    self.DENSITY = self.DENSITY_MAP[color_index - 5]
+                    brush_index = color_index - len(self.COLOR_MAP)
+                    self.radius = self.BRUSH_MAP[brush_index]
+                    self.DENSITY = self.DENSITY_MAP[brush_index]
                     self.spray_mask = self.generate_spray_mask(self.radius, self.DENSITY)
+                self.last_selected_index = color_index
+                self.COLOR_TIMER = 30  # Festhalten
 
         else:
+            self.COLOR_TIMER = 0
+            self.current_hover_index = None
             self.spray_on_canvas(canvas, center, radius, color)
+
+    def draw_selection_progress(self):
+        overlay = self.canvas.copy()
+
+        if self.COLOR_TIMER >= 30:
+            indices = [self.last_selected_index] if hasattr(self, "last_selected_index") else []
+        elif self.COLOR_TIMER > 0 and hasattr(self, "current_hover_index"):
+            indices = [self.current_hover_index]
+        else:
+            indices = []
+
+        for i in range(self.CIRCLE_COUNT):
+            # Zentrum berechnen (wie in get_circle_index)
+            cx = int((self.BORDER + self.CIRCLE_PAD_LEFT + self.CIRCLE_RADIUS) * self.TEXTURE_WIDTH_SCALE)
+            cy = int((self.CIRCLE_PAD_TOP + i * (
+                        self.CIRCLE_PAD + 2 * self.CIRCLE_RADIUS) + self.CIRCLE_RADIUS) * self.TEXTURE_HEIGHT_SCALE)
+
+            # Skaliertes Ellipsen-Radius
+            rx = int(self.CIRCLE_RADIUS * self.TEXTURE_WIDTH_SCALE)
+            ry = int(self.CIRCLE_RADIUS * self.TEXTURE_HEIGHT_SCALE)
+
+            if i in indices:
+                if self.COLOR_TIMER < 30:
+                    progress = self.COLOR_TIMER / 30.0
+                    end_angle = int(360 * progress)
+                    cv2.ellipse(overlay, (cx, cy), (rx, ry), 0, 0, end_angle, (255, 255, 255), 2)
+                else:
+                    cv2.ellipse(overlay, (cx, cy), (rx, ry), 0, 0, 360, (255, 255, 255), 2)
+
+        cv2.imshow('Graffiti', self.resize_canvas('Graffiti', overlay))
 
     def spray_on_canvas(self, canvas, center, radius, color):
         x, y = center
